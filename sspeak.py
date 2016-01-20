@@ -33,12 +33,15 @@ except ImportError:
 
 def main():
     usage = "usage: %prog <search>"
-    opts = utils.parse(sys.argv[:], {}, ".splunkrc", usage=usage)
+    opts = utils.parse(sys.argv[1:], {}, ".splunkrc", usage=usage)
 
-    if len(opts.args) != 2:
-        utils.error("filter mode and search expression required", 2)
-    search = opts.args[1]
-    fmode = opts.args[0]
+    if len(opts.args) < 1:
+        utils.error(" search expression required", 2)
+
+    search = opts.args[0]
+    
+    if len(opts.args) > 1:
+        fmode = opts.args[1]
     
     service = connect(**opts.kwargs)
 
@@ -53,18 +56,23 @@ def main():
         for result in ResultsReader(result.body):
             if result is not None:
                 if isinstance(result, dict):
+                        # extract only the event contents
                         event=result.items()[2][1]
+                        # strip out the leading timestamp files, they don't read well
                         shorte=event[61:]
-                        if fmode == '-ao':
-                            valids = re.sub(r"[^A-Za-z ]+", '', shorte)
-                            print valids
-                            subprocess.call(["/usr/bin/say", valids])
-                        elif fmode == '-an':
-                            print shorte
-                            subprocess.call(["/usr/bin/say", shorte])
+                        
+                        if 'fmode' in globals():
+                            # this is the alpha-only mode, other characters are excluded
+                            if fmode == 'ao':
+                                valids = re.sub(r"[^A-Za-z ]+", '', shorte)
+                                subprocess.call(["/usr/bin/say", valids])
+                            elif fmode == 'an':
+                                valids = re.sub(r"[^A-Za-z0-9 ]+", '', shorte)
+                                subprocess.call(["/usr/bin/say", valids])
+                        else:
+                                subprocess.call(["/usr/bin/say", shorte])
     except KeyboardInterrupt:
         print "\nInterrupted."
 
 if __name__ == "__main__":
     main()
-
