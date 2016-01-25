@@ -33,47 +33,31 @@ except ImportError:
 
 def main():
     usage = "usage: %prog <search>"
-    opts = utils.parse(sys.argv[1:], {}, ".splunkrc", usage=usage)
-
-    if len(opts.args) < 1:
-        utils.error(" search expression required", 2)
-
-    search = opts.args[0]
-    
-    if len(opts.args) > 1:
-        fmode = opts.args[1]
+    opts = utils.parse(sys.argv[:], {}, ".splunkrc", usage=usage)
     
     service = connect(**opts.kwargs)
 
     try:
         result = service.get(
             "search/jobs/export",
-            search=search,
+            search="search instantaneous_eps",
+            index="_internal",
             earliest_time="rt", 
             latest_time="rt", 
             search_mode="realtime")
 
         for result in ResultsReader(result.body):
+            
             if result is not None:
                 if isinstance(result, dict):
+        
                         # extract only the event contents
                         event=result.items()[2][1]
                         # strip out the leading timestamp files, they don't read well
                         shorte=event[61:]
+                        # send the shortened event contents to the speech synth
+                        subprocess.call(["/usr/bin/say", shorte])
                         
-                        if 'fmode' in locals():
-                            # this is the alpha-only mode, other characters are excluded
-                            if fmode == 'ao':
-                                valids = re.sub(r"[^A-Za-z ]+", '', shorte)
-                                print valids
-                                subprocess.call(["/usr/bin/say", valids])
-                            elif fmode == 'an':
-                                valids = re.sub(r"[^A-Za-z0-9 ]+", '', shorte)
-                                print valids
-                                subprocess.call(["/usr/bin/say", valids])
-                        else:
-                                print shorte
-                                subprocess.call(["/usr/bin/say", shorte])
     except KeyboardInterrupt:
         print "\nInterrupted."
 
